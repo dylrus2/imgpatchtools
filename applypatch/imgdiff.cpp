@@ -130,6 +130,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#ifdef __MINGW32__
+typedef unsigned char u_char;
+#endif
+
 #include "zlib.h"
 #include "imgdiff.h"
 #include "utils.h"

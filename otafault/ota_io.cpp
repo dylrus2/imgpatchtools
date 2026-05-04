@@ -22,6 +22,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef __MINGW32__
+#include <io.h>
+#define fsync(fd) _commit(fd)
+#endif
+
 //#include "config.h"
 #include "ota_io.h"
 
@@ -50,15 +55,21 @@ void ota_set_fault_files() {
 
 bool have_eio_error = false;
 
+#ifdef __MINGW32__
+#define OTA_BINARY_FLAG O_BINARY
+#else
+#define OTA_BINARY_FLAG 0
+#endif
+
 int ota_open(const char* path, int oflags) {
     // Let the caller handle errors; we do not care if open succeeds or fails
-    int fd = open(path, oflags);
+    int fd = open(path, oflags | OTA_BINARY_FLAG);
     //filename_cache[fd] = path;
     return fd;
 }
 
 int ota_open(const char* path, int oflags, mode_t mode) {
-    int fd = open(path, oflags, mode);
+    int fd = open(path, oflags | OTA_BINARY_FLAG, mode);
     //filename_cache[fd] = path;
     return fd; }
 

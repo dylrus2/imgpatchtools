@@ -46,7 +46,7 @@ int ApplyPatchFn(const char* name, State* state, int argc, char * argv[]) {
         
         FILE *rm;
         int length;
-        rm = fopen(argv[i+6], "r");
+        rm = fopen(argv[i+6], "rb");
         fseek (rm, 0, SEEK_END);
         length = ftell (rm);
         fseek (rm, 0, SEEK_SET);
@@ -69,7 +69,7 @@ int ApplyPatchFn(const char* name, State* state, int argc, char * argv[]) {
 
         FILE *rm;
         int length;
-        rm = fopen(bonus_filename, "r");
+        rm = fopen(bonus_filename, "rb");
         fseek (rm, 0, SEEK_END);
         length = ftell (rm);
         fseek (rm, 0, SEEK_SET);
@@ -94,7 +94,11 @@ int ApplyPatchFn(const char* name, State* state, int argc, char * argv[]) {
         return -1;
     } else if (res != 0) {
         printf("creating cache dir %s\n", dirname.c_str());
+#ifdef __MINGW32__
+        res = mkdir(dirname.c_str());
+#else
         res = mkdir(dirname.c_str(), CACHE_DIR_MODE);
+#endif
         
         if (res != 0) {
             printf("mkdir \"%s\" failed: %s\n",

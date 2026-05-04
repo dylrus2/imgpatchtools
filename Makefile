@@ -1,3 +1,4 @@
+
 # Erfan Abdi <erfangplus@gmail.com>
 CC = gcc
 PP = g++
@@ -25,11 +26,13 @@ endif
 
 SUBDIRS = applypatch android-base edify minzip otafault blockimg
 
+.PHONY: all sub bindir scriptp clean
+
 all:sub bindir scriptp BlockImageVerify.o BlockImageUpdate.o imgdiff.o ApplyPatch.o bin/BlockImageVerify$(EXE) bin/BlockImageUpdate$(EXE) bin/imgdiff$(EXE) bin/ApplyPatch$(EXE)
 
 sub:
 	for dir in $(SUBDIRS); do \
-	cd $$dir && make && cd ../; \
+	$(MAKE) -C $$dir || exit $$?; \
 	done
 
 bindir:
@@ -63,5 +66,5 @@ bin/ApplyPatch$(EXE):ApplyPatch.o applypatch/applypatch.o edify/expr.o android-b
 	$(CROSS_COMPILE)$(PP) -o $@ $^ $(LDFLAGS) -s
 
 clean:
-	find -name '*.o' -exec rm {} \;
+	find . -name '*.o' -exec $(RM) {} +
 	$(RMDIR) bin

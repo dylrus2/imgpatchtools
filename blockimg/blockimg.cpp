@@ -29,8 +29,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef __MINGW32__
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 #include <limits.h>
@@ -73,7 +75,11 @@ _rc;                                   \
 })
 #endif
 
-#ifndef BLKDISCARD
+#ifdef __MINGW32__
+#define SUPPRESS_EMMC_WIPE
+#endif
+
+#if !defined(BLKDISCARD) && !defined(__MINGW32__)
 #define BLKDISCARD	_IO(0x12,119)
 #endif
 
@@ -215,6 +221,10 @@ static bool discard_blocks(int fd, off_t offset, uint64_t size) {
         return true;
     }
 
+#ifdef __MINGW32__
+    (void)fd; (void)offset; (void)size;
+    return true;
+#else
     struct stat sb;
     if (fstat(fd, &sb) == -1) {
         printf("failed to fstat device to BLKDISCARD: %s\n", strerror(errno));
@@ -233,6 +243,7 @@ static bool discard_blocks(int fd, off_t offset, uint64_t size) {
         return false;
     }
     return true;
+#endif
 }
 
 static bool check_lseek(int fd, off_t offset, int whence) {
@@ -552,11 +563,17 @@ static void EnumerateStash(const std::string& dirname, StashCallback callback, v
 
     struct dirent* item;
     while ((item = readdir(directory.get())) != nullptr) {
+        std::string fn = dirname + "/" + std::string(item->d_name);
+#ifdef __MINGW32__
+        struct stat sb;
+        if (stat(fn.c_str(), &sb) != 0 || !S_ISREG(sb.st_mode)) {
+            continue;
+        }
+#else
         if (item->d_type != DT_REG) {
             continue;
         }
-
-        std::string fn = dirname + "/" + std::string(item->d_name);
+#endif
         callback(fn, data);
     }
 }
@@ -746,6 +763,7 @@ static int WriteStash(const std::string& base, const std::string& id, int blocks
         return -1;
     }
 
+#ifndef __MINGW32__
     std::string dname = GetStashFileName(base, "", "");
     int dfd = TEMP_FAILURE_RETRY(open(dname.c_str(), O_RDONLY | O_DIRECTORY));
     unique_fd dfd_holder(dfd);
@@ -761,6 +779,7 @@ static int WriteStash(const std::string& base, const std::string& id, int blocks
         printf("fsync \"%s\" failed: %s\n", dname.c_str(), strerror(errno));
         return -1;
     }
+#endif
 
     return 0;
 }
@@ -791,7 +810,11 @@ static int CreateStash(State* state, int maxblocks, const char* blockdev, std::s
         return -1;
     } else if (res != 0) {
         printf("creating stash %s\n", dirname.c_str());
+#ifdef __MINGW32__
+        res = mkdir(dirname.c_str());
+#else
         res = mkdir(dirname.c_str(), STASH_DIRECTORY_MODE);
+#endif
 
         if (res != 0) {
             ErrorAbort(state, kStashCreationFailure, "mkdir \"%s\" failed: %s\n",
@@ -1449,7 +1472,12 @@ static int PerformBlockImageUpdate(const char* name, State* state, int argc, cha
         return -1;
     } else if (res != 0) {
         printf("creating cache dir %s\n", dirname.c_str());
+#ifdef __MINGW32__
+        res = mkdir(dirname.c_str());
+        (void)STASH_DIRECTORY_MODE;
+#else
         res = mkdir(dirname.c_str(), STASH_DIRECTORY_MODE);
+#endif
 
         if (res != 0) {
             ErrorAbort(state, kStashCreationFailure, "mkdir \"%s\" failed: %s\n",

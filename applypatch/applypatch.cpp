@@ -21,11 +21,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__MINGW32__)
 #include <sys/statfs.h>
 #endif
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifdef __MINGW32__
+#ifndef O_SYNC
+#define O_SYNC 0
+#endif
+static inline int chown(const char*, unsigned, unsigned) { return 0; }
+#endif
 
 #include <memory>
 #include <string>
@@ -601,7 +608,7 @@ ssize_t MemorySink(const unsigned char* data, ssize_t len, void* token) {
 
 // Return the amount of free space (in bytes) on the filesystem
 // containing filename.  filename must exist.  Return -1 on error.
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__MINGW32__)
 size_t FreeSpaceForFile(const char* filename) {
     struct statfs sf;
     if (statfs(filename, &sf) != 0) {
@@ -850,7 +857,7 @@ static int GenerateTarget(FileContents* source_file,
         } else {
             int enough_space = 0;
             if (retry > 0) {
-                #ifndef __APPLE__
+                #if !defined(__APPLE__) && !defined(__MINGW32__)
                 size_t free_space = FreeSpaceForFile(target_fs.c_str());
                 enough_space =
                     (free_space > (256 << 10)) &&          // 256k (two-block) minimum
@@ -891,7 +898,7 @@ static int GenerateTarget(FileContents* source_file,
                 }
                 made_copy = 1;
                 unlink(source_filename);
-                #ifndef __APPLE__
+                #if !defined(__APPLE__) && !defined(__MINGW32__)
                 size_t free_space = FreeSpaceForFile(target_fs.c_str());
                 printf("(now %zu bytes free for target) ", free_space);
                 #endif
